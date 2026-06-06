@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="flow" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="40%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="flow-light" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="50%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+
+  <!-- thin accent arc (depth) -->
+  <path d="M 14 46 Q 22 32 30 26 T 50 14" fill="none" stroke="url(#flow-light)" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- main flow path -->
+  <path d="M 6 52 C 14 34, 24 22, 32 18 C 40 14, 48 20, 56 10" fill="none" stroke="url(#flow)" stroke-width="5.5" stroke-linecap="round"/>
+
+  <!-- node 1 (start) -->
+  <circle cx="15" cy="37.5" r="5.5" fill="#ffffff" stroke="url(#flow)" stroke-width="3.5"/>
+  <circle cx="15" cy="37.5" r="1.8" fill="#06b6d4"/>
+
+  <!-- node 2 (middle) -->
+  <circle cx="32" cy="18" r="4.5" fill="#ffffff" stroke="url(#flow)" stroke-width="3"/>
+  <circle cx="32" cy="18" r="1.5" fill="#0ea5e9"/>
+
+  <!-- node 3 (end) -->
+  <circle cx="56" cy="10" r="3.5" fill="#ffffff" stroke="url(#flow)" stroke-width="2.5"/>
+  <circle cx="56" cy="10" r="1.2" fill="#6366f1"/>
+</svg>

@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python *)",
+      "Bash(PYTHONPATH=. python *)",
+      "Bash(alembic upgrade *)",
+      "Bash(curl -s http://localhost:5173/api/v1/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"username\":\"admin\",\"password\":\"admin123\"}')",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('@xyflow/react:', p.dependencies?.['@xyflow/react'] || 'NOT FOUND'\\); console.log\\('react:', p.dependencies?.react || 'NOT FOUND'\\); console.log\\('antd:', p.dependencies?.antd || 'NOT FOUND'\\); console.log\\('react-router-dom:', p.dependencies?.['react-router-dom'] || 'NOT FOUND'\\)\")",
+      "Bash(npx vite *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5199/)",
+      "Bash(kill %1)",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('@tailwindcss/vite:', p.devDependencies?.['@tailwindcss/vite'] || p.dependencies?.['@tailwindcss/vite'] || 'NOT FOUND'\\)\")",
+      "Bash(npm install *)",
+      "Bash(fuser -k 5173/tcp)",
+      "Bash(netstat -ano)",
+      "Bash(awk '{print $5}')",
+      "Bash(xargs -r taskkill //F //PID)",
+      "Bash(pkill -f \"vite\")",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP: %{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"CSS: %{http_code}\\\\n\" http://localhost:5173/src/index.css)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}
