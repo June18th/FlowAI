@@ -1892,6 +1892,45 @@ select {
   margin-top: 2px;
 }
 
+.dashboard-config-card {
+  border: 1px solid var(--border-default) !important;
+  border-radius: 10px !important;
+  background: var(--bg-surface) !important;
+}
+
+.dashboard-config-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.dashboard-config-item {
+  padding: 12px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg-subtle);
+}
+
+.dashboard-config-item-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.dashboard-config-provider {
+  font-size: 15px;
+  font-weight: 680;
+  color: var(--text-heading);
+}
+
+.dashboard-config-model {
+  font-size: 14px;
+  color: var(--text-body);
+  font-family: ui-monospace, monospace;
+  margin-top: 2px;
+}
+
 .dashboard-workflow-card {
   border: 1px solid var(--border-default) !important;
   border-radius: 10px !important;

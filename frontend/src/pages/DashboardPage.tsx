@@ -8,17 +8,32 @@ import {
   ShareAltOutlined,
   AppstoreOutlined,
   ArrowRightOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 import { getWorkflows, Workflow, PageData } from '../api/workflow';
+import { getAllConfigs, LLMGlobalConfig } from '../api/llmConfig';
 
 const DashboardPage = () => {
   const navigate = useNavigate();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [configs, setConfigs] = useState<LLMGlobalConfig[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadWorkflows();
+    loadConfigs();
   }, []);
+
+  const loadConfigs = async () => {
+    try {
+      const result = await getAllConfigs();
+      if (result.code === 200) {
+        setConfigs(Array.isArray(result.data) ? result.data : (result.data as any)?.items || []);
+      }
+    } catch {
+      // 静默失败
+    }
+  };
 
   const loadWorkflows = async () => {
     setLoading(true);
@@ -112,6 +127,28 @@ const DashboardPage = () => {
             </div>
           </Card>
         </div>
+
+        {/* 模型配置 */}
+        {configs.length > 0 && (
+          <Card
+            title="模型配置"
+            className="dashboard-config-card"
+            style={{ marginBottom: 20 }}
+          >
+            <div className="dashboard-config-grid">
+              {configs.map((c) => (
+                <div key={c.id} className="dashboard-config-item">
+                  <div className="dashboard-config-item-top">
+                    <span className="dashboard-config-provider">{c.provider}</span>
+                    {c.isDefault === 1 && <Tag color="blue" style={{ fontSize: 10, lineHeight: '18px' }}>默认</Tag>}
+                    {c.ttsModel && <Tag color="green" style={{ fontSize: 10, lineHeight: '18px' }}>TTS</Tag>}
+                  </div>
+                  <div className="dashboard-config-model">{c.model}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* 最近工作流 */}
         <Card
