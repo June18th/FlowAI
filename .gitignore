@@ -46,3 +46,11 @@ Thumbs.db
 *.tmp
 *.temp
 CHANGELOG.md
+
+# 文档 (仅保留 README.md)
+AGENTS.md
+CLAUDE.md
+HARNESS_ROADMAP.md
+CHANGELOG.md
+.claude/plans/
+frontend/README.md
