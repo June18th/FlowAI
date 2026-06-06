@@ -57,6 +57,14 @@ ReAct Agent、Web Search、Web Fetch、TTS 音频合成、图片/视频生成、
 
 ---
 
+## 界面预览
+
+| 仪表盘 | 编辑器 |
+|:---:|:---:|
+| ![仪表盘](docs/dashboard.png) | ![编辑器](docs/editor.png) |
+
+---
+
 ## 技术架构
 
 ```
