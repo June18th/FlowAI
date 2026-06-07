@@ -9,8 +9,6 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sse_starlette.sse import EventSourceResponse
-
 from app.dependencies import get_db, require_auth
 from app.engine.engine_selector import engine_selector
 from app.models.execution import ExecutionRecord, ExecutionSnapshot, ExecutionVariable
@@ -56,34 +54,50 @@ async def execute_workflow_stream(
 ):
     wf = await workflow_service.get_workflow_entity(db, workflowId)
     if not wf:
-        async def error_gen():
-            yield {"event": "ERROR", "data": json.dumps({"message": "工作流不存在"})}
-        return EventSourceResponse(error_gen())
+        from starlette.responses import StreamingResponse
+        return StreamingResponse(
+            (f"event: ERROR\ndata: {json.dumps({'message': '工作流不存在'})}\n\n" for _ in [1]),
+            media_type="text/event-stream")
 
     engine = engine_selector.select(wf)
-    event_queue: asyncio.Queue = asyncio.Queue()
+
+    import threading
+    from app.database import async_session
+
+    events: list[dict] = []
+    lock = threading.Lock()
 
     def event_callback(event: dict[str, Any]):
-        asyncio.ensure_future(event_queue.put(event))
+        with lock:
+            events.append(event)
 
     async def event_generator():
-        task = asyncio.create_task(_run_engine(engine, wf, inputData, event_callback, db))
-        while True:
-            try:
-                event = await asyncio.wait_for(event_queue.get(), timeout=0.5)
-                event_type = event.pop("eventType", "message")
-                yield {"event": event_type, "data": json.dumps(event, default=str)}
-                if event_type in ("WORKFLOW_COMPLETE", "ERROR"):
-                    break
-            except asyncio.TimeoutError:
+        async with async_session() as task_db:
+            task = asyncio.create_task(_run_engine(engine, wf, inputData, event_callback, task_db))
+            sent = 0
+            while True:
+                with lock:
+                    new_events = events[sent:]
+                    sent = len(events)
+                for event in new_events:
+                    event_type = event.get("eventType", "message")
+                    yield {"event": event_type, "data": json.dumps(event, default=str)}
                 if task.done():
                     if task.exception():
                         yield {"event": "ERROR", "data": json.dumps({"message": str(task.exception())})}
                     break
-                continue
-        await task
+                await asyncio.sleep(0.1)
 
-    return EventSourceResponse(event_generator())
+    from starlette.responses import StreamingResponse
+
+    async def sse_wrapper():
+        async for event in event_generator():
+            event_type = event.get("event", "message")
+            data_str = event.get("data", "")
+            yield f"event: {event_type}\ndata: {data_str}\n\n"
+
+    return StreamingResponse(sse_wrapper(), media_type="text/event-stream",
+                            headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
 async def _run_engine(engine, wf, input_data: str, callback, db):

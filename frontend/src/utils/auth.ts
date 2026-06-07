@@ -4,7 +4,7 @@ import { buildBackendUrl } from '../config/api';
 const ACCESS_TOKEN_KEY = 'token';
 const REFRESH_TOKEN_KEY = 'refreshToken';
 const USERNAME_KEY = 'username';
-const REFRESH_ENDPOINT = buildBackendUrl('/api/auth/refresh');
+const REFRESH_ENDPOINT = buildBackendUrl('/api/v1/auth/refresh');
 
 let refreshPromise: Promise<string | null> | null = null;
 

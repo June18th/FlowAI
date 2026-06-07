@@ -74,7 +74,7 @@ Current tools available: {', '.join(t.get('name', str(t)) for t in tools)}
                 progress_callback({
                     "eventType": "NODE_PROGRESS",
                     "nodeId": node.id,
-                    "nodeName": node.data.get("name", ""),
+                    "nodeName": node.display_name,
                     "message": f"ReAct Step {step}/{max_steps}",
                 })
 

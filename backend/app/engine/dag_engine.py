@@ -40,9 +40,15 @@ _cancel_redis: aioredis.Redis | None = None
 def _get_cancel_redis() -> aioredis.Redis:
     global _cancel_redis
     if _cancel_redis is None:
-        _cancel_redis = aioredis.Redis.from_url(
-            settings.redis_url, decode_responses=True
-        )
+        _cancel_redis = aioredis.Redis(connection_pool=aioredis.ConnectionPool(
+            host=settings.redis_host,
+            port=settings.redis_port,
+            db=settings.redis_db,
+            password=settings.redis_password or None,
+            decode_responses=True,
+            max_connections=5,
+            protocol=2,
+        ))
     return _cancel_redis
 
 
@@ -152,6 +158,7 @@ class DAGWorkflowEngine:
                                if record.executed_at else 0)
             if db:
                 await db.flush()
+                await db.commit()
 
             self._emit(event_callback, "WORKFLOW_COMPLETE",
                        status="SUCCESS",
@@ -159,14 +166,19 @@ class DAGWorkflowEngine:
                        data=record.output_data)
             record_execution_end("SUCCESS", "dag", time.time() - exec_start_time)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             record.status = "FAILED"
             record.error_message = str(e)
             record.duration = (int((time.time() - record.executed_at.timestamp()) * 1000)
                                if record.executed_at else 0)
             if db:
                 await db.flush()
+                await db.commit()
 
-            self._emit(event_callback, "WORKFLOW_COMPLETE", status="FAILED", message=str(e))
+            self._emit(event_callback, "WORKFLOW_COMPLETE", status="FAILED",
+                       message=f"总耗时 {record.duration}ms",
+                       data={"error": str(e)})
             record_execution_end("FAILED", "dag", time.time() - exec_start_time)
             raise
         finally:
@@ -257,7 +269,7 @@ class DAGWorkflowEngine:
                 flow_id=flow_id,
                 node_id=node_id,
                 node_type=node.type,
-                node_name=node.data.get("name", ""),
+                node_name=node.display_name,
                 status="RUNNING",
                 input_data=node_input,
                 started_at=datetime.utcnow(),
@@ -268,7 +280,7 @@ class DAGWorkflowEngine:
                 await db.flush()
 
             node_start = time.time()
-            self._emit(event_callback, "NODE_START", nodeId=node_id, nodeName=node.data.get("name", ""))
+            self._emit(event_callback, "NODE_START", nodeId=node_id, nodeName=node.display_name)
 
             max_retries = node.data.get("maxRetries", 0)
             retry_delay_ms = node.data.get("retryDelayMs", 2000)
@@ -280,9 +292,9 @@ class DAGWorkflowEngine:
             if not breaker.allow():
                 msg = f"熔断器已开启，节点类型 '{node.type}' 暂时不可用"
                 self._emit(event_callback, "NODE_ERROR", nodeId=node_id,
-                           nodeName=node.data.get("name", ""), message=msg)
+                           nodeName=node.display_name, message=msg)
                 node_results.append({
-                    "nodeId": node_id, "nodeName": node.data.get("name", ""),
+                    "nodeId": node_id, "nodeName": node.display_name,
                     "status": "FAILED", "input": self._sanitize_output(node_input),
                     "error": f"CIRCUIT_OPEN: {msg}", "duration": 0, "retries": 0,
                 })
@@ -297,6 +309,7 @@ class DAGWorkflowEngine:
                 try:
                     executor = node_executor_factory.get_executor(node.type)
                     output = await executor.execute(node, node_input, event_callback)
+                    output = self._sanitize_output(output)
                     breaker.success()
                     break
                 except Exception as e:
@@ -305,7 +318,7 @@ class DAGWorkflowEngine:
                     if attempt <= max_retries:
                         delay = retry_delay_ms * (2 ** (attempt - 1)) / 1000.0
                         self._emit(event_callback, "NODE_RETRY", nodeId=node_id,
-                                   nodeName=node.data.get("name", ""),
+                                   nodeName=node.display_name,
                                    message=f"重试 {attempt}/{max_retries}，等待 {delay:.1f}s",
                                    data={"error": str(e), "attempt": attempt, "maxRetries": max_retries})
                         record_node_retry(node.type)
@@ -314,7 +327,7 @@ class DAGWorkflowEngine:
                     duration = int((time.time() - node_start) * 1000)
                     node_results.append({
                         "nodeId": node_id,
-                        "nodeName": node.data.get("name", ""),
+                        "nodeName": node.display_name,
                         "status": "FAILED",
                         "input": self._sanitize_output(node_input),
                         "error": str(last_error),
@@ -328,7 +341,7 @@ class DAGWorkflowEngine:
                     record_node_failure(node.type, duration / 1000.0)
                     breaker.failure()
                     self._emit(event_callback, "NODE_ERROR", nodeId=node_id,
-                               nodeName=node.data.get("name", ""), message=str(last_error))
+                               nodeName=node.display_name, message=str(last_error))
                     # Save checkpoint even on failure so resume knows where we stopped
                     apply_checkpoint(record, node_outputs, completed_ids, skipped_nodes,
                                      node_results, final_output, sorted_nodes, node_id)
@@ -339,7 +352,7 @@ class DAGWorkflowEngine:
             duration = int((time.time() - node_start) * 1000)
             node_results.append({
                 "nodeId": node_id,
-                "nodeName": node.data.get("name", ""),
+                "nodeName": node.display_name,
                 "status": "SUCCESS",
                 "input": self._sanitize_output(node_input),
                 "output": self._sanitize_output(output),
@@ -350,13 +363,13 @@ class DAGWorkflowEngine:
             completed_ids.add(node_id)
 
             snapshot.status = "SUCCESS"
-            snapshot.output_data = output
+            snapshot.output_data = self._sanitize_output(output)
             snapshot.completed_at = datetime.utcnow()
             snapshot.duration = duration
             record_node_success(node.type, duration / 1000.0)
 
             self._emit(event_callback, "NODE_SUCCESS", nodeId=node_id,
-                       nodeName=node.data.get("name", ""),
+                       nodeName=node.display_name,
                        message=f"耗时 {duration}ms",
                        data={"input": self._sanitize_output(node_input),
                              "output": self._sanitize_output(output)})
@@ -476,7 +489,7 @@ class DAGWorkflowEngine:
         for node in config.nodes:
             node_type = node.type
             data = node.data
-            node_name = data.get("name", node.id)
+            node_name = node.display_name
 
             if node_type in ("input", "output"):
                 continue

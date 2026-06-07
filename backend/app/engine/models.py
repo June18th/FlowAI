@@ -17,6 +17,10 @@ class WorkflowNode:
     position: WorkflowPosition | None = None
     data: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def display_name(self) -> str:
+        return str(self.data.get("label") or self.data.get("name") or self.type)
+
 
 @dataclass
 class WorkflowEdge:

@@ -602,8 +602,10 @@ const DebugDrawer = ({ open, workflowId, totalNodeCount, onClose }: DebugDrawerP
               } else if (typeof event.data === 'string') {
                 const parsedExecutionId = Number.parseInt(event.data, 10);
                 activeExecutionId = Number.isNaN(parsedExecutionId) ? 0 : parsedExecutionId;
+              } else if (isRecord(event.data) && typeof event.data.data === 'number') {
+                activeExecutionId = event.data.data;
               }
-              addLog('🚀 工作流开始执行');
+              addLog(`🚀 工作流开始执行 (ID: ${activeExecutionId || 'N/A'})`);
               break;
               
             case 'NODE_START':
@@ -648,11 +650,45 @@ const DebugDrawer = ({ open, workflowId, totalNodeCount, onClose }: DebugDrawerP
                 const existingNode = tempNodeStatusMap.get(event.nodeId);
                 if (existingNode) {
                   existingNode.status = 'RUNNING';
+                  if (isRecord(event.data)) {
+                    existingNode.output = { ...existingNode.output, ...event.data };
+                  }
                   setNodeStatusMap(new Map(tempNodeStatusMap));
                 }
               }
               break;
-              
+
+            case 'TTS_CHUNK':
+            case 'TTS_MERGE':
+            case 'TTS_COMPLETE':
+              if (event.message) {
+                addLog(`🎵 ${event.message}`);
+              }
+              if (event.nodeId) {
+                const ttsNode = tempNodeStatusMap.get(event.nodeId);
+                if (ttsNode) {
+                  ttsNode.status = 'RUNNING';
+                  if (isRecord(event.data)) {
+                    ttsNode.output = { ...ttsNode.output, ...event.data };
+                  }
+                  setNodeStatusMap(new Map(tempNodeStatusMap));
+                }
+              }
+              break;
+
+            case 'NODE_RETRY':
+              if (event.message) {
+                addLog(`🔄 ${event.message}`);
+              }
+              break;
+
+            case 'WORKFLOW_RESUME':
+              addLog(`🔁 ${event.message || '工作流从断点恢复执行'}`);
+              if (typeof event.data === 'number') {
+                activeExecutionId = event.data;
+              }
+              break;
+
             case 'NODE_ERROR':
               if (event.nodeId && event.nodeName) {
                 addLog(`❌ 节点 [${event.nodeName}] 执行失败: ${event.message}`);
@@ -780,7 +816,7 @@ const DebugDrawer = ({ open, workflowId, totalNodeCount, onClose }: DebugDrawerP
     if (executionResult) {
       return executionResult.nodeResults.length;
     }
-    return totalNodeCount > 0 ? totalNodeCount : nodeStatusMap.size;
+    return Math.max(totalNodeCount, nodeStatusMap.size);
   };
 
   const getCompletedNodeCount = () => (
@@ -788,9 +824,9 @@ const DebugDrawer = ({ open, workflowId, totalNodeCount, onClose }: DebugDrawerP
   );
 
   const renderNodeResultItem = (nodeResult: NodeResult) => {
-    let statusColor = 'default';
+    let statusColor: 'default' | 'success' | 'error' | 'processing' = 'default';
     let statusIcon = <LoadingOutlined />;
-    
+
     if (nodeResult.status === 'SUCCESS') {
       statusColor = 'success';
       statusIcon = <CheckCircleOutlined />;
@@ -802,25 +838,47 @@ const DebugDrawer = ({ open, workflowId, totalNodeCount, onClose }: DebugDrawerP
       statusIcon = <LoadingOutlined />;
     }
 
+    const chunkIdx = nodeResult.output.chunkIndex as number | undefined;
+    const chunkTotal = nodeResult.output.totalChunks as number | undefined;
+    const chunkProgress = nodeResult.status === 'RUNNING'
+      && typeof chunkIdx === 'number'
+      && typeof chunkTotal === 'number'
+      ? ` 片段 ${chunkIdx}/${chunkTotal}`
+      : '';
+
+    const hasChunkProgress = nodeResult.status === 'RUNNING'
+      && typeof chunkIdx === 'number'
+      && typeof chunkTotal === 'number';
+
     return {
       key: nodeResult.nodeId,
       label: (
         <div className="debug-node-collapse-label">
           <span className="debug-node-name">
-            {statusIcon} {nodeResult.nodeName}
+            {statusIcon} {nodeResult.nodeName}{chunkProgress}
           </span>
           <Tag color={statusColor}>{formatDuration(nodeResult.duration)}</Tag>
         </div>
       ),
       children: (
         <div className="debug-node-result-body">
+          {hasChunkProgress && (
+            <div className="mb-3">
+              <Progress
+                percent={Math.round((chunkIdx! / chunkTotal!) * 100)}
+                size="small"
+                status="active"
+                format={() => `${chunkIdx}/${chunkTotal}`}
+              />
+            </div>
+          )}
           <div>
             <div className="debug-field-label">输入数据</div>
             <DebugValue value={nodeResult.input} preferOutputText />
           </div>
           <div>
             <div className="debug-field-label">输出数据</div>
-            <RichOutput value={nodeResult.output} preferOutputText />
+            <RichOutput value={nodeResult.output} preferOutputText renderMedia={nodeResult.status === 'SUCCESS'} />
           </div>
           {nodeResult.error && (
             <Alert message="错误信息" description={nodeResult.error} type="error" showIcon />
@@ -899,7 +957,7 @@ const DebugDrawer = ({ open, workflowId, totalNodeCount, onClose }: DebugDrawerP
                   <span>执行中...</span>
                 </div>
               )}
-              {(executionResult || nodeStatusMap.size > 0) && (
+              {(executionResult || nodeStatusMap.size > 0 || totalNodeCount > 0) && (
                 <>
                   <div className="flex items-center justify-between mb-2">
                     <span>
@@ -933,7 +991,7 @@ const DebugDrawer = ({ open, workflowId, totalNodeCount, onClose }: DebugDrawerP
             </div>
             <Collapse
               items={currentNodeResults.map(renderNodeResultItem)}
-              defaultActiveKey={currentNodeResults.map((r) => r.nodeId)}
+              activeKey={currentNodeResults.map((r) => r.nodeId)}
               bordered={false}
               ghost
               className="debug-result-collapse"

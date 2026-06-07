@@ -48,6 +48,7 @@ Thumbs.db
 CHANGELOG.md
 
 # 文档 (仅保留 README.md)
+docs/
 AGENTS.md
 CLAUDE.md
 HARNESS_ROADMAP.md
