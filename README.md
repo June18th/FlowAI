@@ -67,11 +67,13 @@ ReAct Agent、Web Search、Web Fetch、TTS 音频合成、图片/视频生成、
 ┌─────────────────────────────────────────────────────────┐
 │               前端 (Frontend)                              │
 │  React 18 + TypeScript + ReactFlow + Ant Design 6        │
+│  Docker: nginx:alpine (端口 3000)                         │
 └────────────────────┬────────────────────────────────────┘
                      │ REST API / SSE
 ┌────────────────────┴────────────────────────────────────┐
 │               后端 (Backend)                               │
-│           FastAPI + Python 3.13 + SQLAlchemy              │
+│      FastAPI + Python 3.13 + SQLAlchemy (端口 8084)       │
+│      Docker: python:3.13-slim + uvicorn                  │
 └────────────────────┬────────────────────────────────────┘
                      │
 ┌────────────────────┴────────────────────────────────────┐
@@ -88,7 +90,7 @@ ReAct Agent、Web Search、Web Fetch、TTS 音频合成、图片/视频生成、
                      │
 ┌────────────────────┴────────────────────────────────────┐
 │              数据层 (Docker)                                │
-│  MySQL 8.0 (3307) | Redis 7 (6379) | MinIO (9000)       │
+│  MySQL 8.0 (3308) | Redis 7 (6380) | MinIO (9002)       │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -98,8 +100,11 @@ ReAct Agent、Web Search、Web Fetch、TTS 音频合成、图片/视频生成、
 
 ```
 FlowAI/
-├── docker-compose.yml
+├── docker-compose.yml              # 全部服务编排
+├── .env                            # 公共环境变量
 ├── backend/
+│   ├── Dockerfile                  # 后端镜像
+│   ├── docker-entrypoint.sh        # 启动脚本 (等待DB → 迁移 → 启动)
 │   ├── main.py                     # FastAPI 入口
 │   ├── app/
 │   │   ├── config.py               # pydantic-settings (FLOWAGENT_ 前缀)
@@ -117,6 +122,8 @@ FlowAI/
 │   ├── tests/                      # pytest 单元测试
 │   └── alembic/                    # 数据库迁移
 ├── frontend/
+│   ├── Dockerfile                  # 前端镜像 (多阶段: node build + nginx)
+│   ├── nginx.conf                  # SPA路由 + /api 反向代理
 │   ├── src/
 │   │   ├── pages/                  # 仪表盘 / 编辑器 / 知识库 / MCP
 │   │   ├── components/             # 画布 / 节点面板 / 调试面板
@@ -131,7 +138,25 @@ FlowAI/
 
 ## 快速开始
 
-### 环境要求
+### 方式一：Docker 一键部署（推荐）
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/June18th/FlowAI.git
+cd FlowAI
+
+# 2. 配置环境变量（可选，默认值即可运行）
+cp .env.example .env
+
+# 3. 一键启动全部服务
+docker compose up -d
+```
+
+访问 `http://localhost:3000`，默认账户 `admin / admin123`。
+
+### 方式二：本地开发
+
+#### 环境要求
 
 | 工具 | 版本 | 说明 |
 |------|------|------|
@@ -139,40 +164,40 @@ FlowAI/
 | Node.js | 18+ | 前端构建 |
 | Docker | 最新版 | 运行 MySQL/Redis/MinIO |
 
-### 1. 启动 Docker 服务
+#### 1. 启动 Docker 服务
 
 ```bash
-docker compose up -d
+docker compose up -d mysql redis minio
 ```
 
-### 2. 配置环境变量
+#### 2. 配置环境变量
 
 ```bash
 cd backend
 cp ../.env.example .env
 ```
 
-### 3. 安装依赖并迁移
+#### 3. 安装依赖并迁移
 
 ```bash
 pip install -e .
 alembic upgrade head
 ```
 
-### 4. 启动后端
+#### 4. 启动后端
 
 ```bash
 python main.py                      # 端口 8084
 ```
 
-### 5. 启动前端
+#### 5. 启动前端
 
 ```bash
 cd frontend
 npm install && npm run dev          # 端口 5173
 ```
 
-### 6. 登录
+#### 6. 登录
 
 用户名 `admin`，密码 `admin123`
 

@@ -6,6 +6,7 @@ services:
     ports:
       - "3308:3306"
     environment:
+      TZ: Asia/Shanghai
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
       MYSQL_DATABASE: flowagent
       MYSQL_USER: ${MYSQL_USER:-flowagent}
@@ -25,6 +26,8 @@ services:
     restart: unless-stopped
     ports:
       - "6380:6379"
+    environment:
+      TZ: Asia/Shanghai
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -42,6 +45,7 @@ services:
       - "9002:9000"
       - "9003:9001"
     environment:
+      TZ: Asia/Shanghai
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     command: server /data --console-address ":9001"
@@ -52,6 +56,58 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: flowagent-backend
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      TZ: Asia/Shanghai
+      FLOWAGENT_SERVER_PORT: "8084"
+      FLOWAGENT_MYSQL_HOST: mysql
+      FLOWAGENT_MYSQL_PORT: "3306"
+      FLOWAGENT_MYSQL_DATABASE: flowagent
+      FLOWAGENT_MYSQL_USERNAME: root
+      FLOWAGENT_MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      FLOWAGENT_REDIS_HOST: redis
+      FLOWAGENT_REDIS_PORT: "6379"
+      FLOWAGENT_REDIS_PASSWORD: ""
+      FLOWAGENT_REDIS_DB: "0"
+      FLOWAGENT_MINIO_ENDPOINT: http://minio:9000
+      FLOWAGENT_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      FLOWAGENT_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      FLOWAGENT_MINIO_BUCKET_NAME: flowagent
+      FLOWAGENT_MINIO_PUBLIC_URL: http://localhost:9002
+      FLOWAGENT_JWT_SECRET: ${FLOWAGENT_JWT_SECRET:-}
+      FLOWAGENT_DEFAULT_USERNAME: ${FLOWAGENT_DEFAULT_USERNAME:-admin}
+      FLOWAGENT_DEFAULT_PASSWORD: ${FLOWAGENT_DEFAULT_PASSWORD:-admin123}
+      FLOWAGENT_SKILLS_PATH: skills
+      FLOWAGENT_CORS_ALLOWED_ORIGINS: '["http://localhost:3000","http://localhost:8084"]'
+      FLOWAGENT_OTEL_ENABLED: "false"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: flowagent-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      TZ: Asia/Shanghai
+    depends_on:
+      - backend
 
 volumes:
   mysql_data:
