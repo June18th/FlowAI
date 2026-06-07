@@ -144,6 +144,7 @@ class LangGraphWorkflowEngine:
 
         self._emit(event_callback, "WORKFLOW_START", data=record.id)
 
+        result = {}
         try:
             import json as _json
             result = await compiled.ainvoke(initial_state) or {}

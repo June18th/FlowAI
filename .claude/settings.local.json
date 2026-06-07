@@ -20,7 +20,15 @@
       "Bash(npm run *)",
       "Bash(curl -s -o /dev/null -w \"HTTP: %{http_code}\\\\n\" http://localhost:5173/)",
       "Bash(curl -s -o /dev/null -w \"CSS: %{http_code}\\\\n\" http://localhost:5173/src/index.css)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(powershell.exe -Command 'Get-NetTCPConnection -LocalPort 8084 -ErrorAction SilentlyContinue | Select-Object OwningProcess | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force; Write-Host \"Killed PID: $\\($_.OwningProcess\\)\" }')",
+      "Bash(docker exec flowagent-mysql *)",
+      "Bash(curl -s http://localhost:8084/api/v1/workflows/5)",
+      "Bash(curl -s -X POST http://localhost:8084/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"admin\",\"password\":\"admin123\"}')",
+      "Bash(sed -i \"s/selectedNode.data?.type !== 'tts' &&/selectedNode.data?.type !== 'tts' \\\\&\\\\&\\\\n\\\\t\\\\t\\\\t\\\\t selectedNode.data?.type !== 'weather_query' \\\\&\\\\&/\" EditorPage.tsx)",
+      "Bash(sed -n '2941,2945p' EditorPage.tsx)",
+      "Bash(sed -i '2377s|.*|\\\\t\\\\t\\\\t\\\\t{/* 天气查询节点配置 */}\\\\n\\\\t\\\\t\\\\t\\\\t{selectedNode.data?.type === '\\\\''weather_query'\\\\'' \\\\&\\\\& \\(\\\\n\\\\t\\\\t\\\\t\\\\t  <Form layout=\"vertical\" className=\"workflow-config-form\">\\\\n\\\\t\\\\t\\\\t\\\\t    <div className=\"workflow-config-section\">\\\\n\\\\t\\\\t\\\\t\\\\t      <label className=\"workflow-config-section-title\">高德地图 API 配置</label>\\\\n\\\\t\\\\t\\\\t\\\\t      <Form.Item label=\"API Key\" required>\\\\n\\\\t\\\\t\\\\t\\\\t        <Input\\\\n\\\\t\\\\t\\\\t\\\\t          placeholder=\"请输入高德地图 API Key\"\\\\n\\\\t\\\\t\\\\t\\\\t          value={selectedNode.data?.apiKey || '\\\\'''\\\\''}\\\\n\\\\t\\\\t\\\\t\\\\t          onChange={\\(e\\) => updateNodeData\\(selectedNode.id, { ...selectedNode.data, apiKey: e.target.value }\\)}\\\\n\\\\t\\\\t\\\\t\\\\t        />\\\\n\\\\t\\\\t\\\\t\\\\t      </Form.Item>\\\\n\\\\t\\\\t\\\\t\\\\t    </div>\\\\n\\\\t\\\\t\\\\t\\\\t  </Form>\\\\n\\\\t\\\\t\\\\t\\\\t\\)}\\\\n\\\\n\\\\t\\\\t\\\\t\\\\t{/* Agent Plan / Harness 节点配置 */}|' EditorPage.tsx)",
+      "Bash(sed -n '2377,2398p' EditorPage.tsx)"
     ]
   }
 }

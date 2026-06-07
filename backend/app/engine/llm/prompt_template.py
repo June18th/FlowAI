@@ -31,8 +31,11 @@ def process_template(
                     param_values[name] = str(value)
             elif param_type == "reference":
                 # Dynamic value from runtime input
-                field = param.get("field", name)
+                ref = param.get("referenceNode", "")
+                field = ref or param.get("field", name)
                 value = _resolve_reference(field, runtime_input)
+                if value is None and "." in field:
+                    value = _resolve_reference(field.split(".")[-1], runtime_input)
                 if value is not None:
                     param_values[name] = str(value)
 

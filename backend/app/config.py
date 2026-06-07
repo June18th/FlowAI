@@ -7,8 +7,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    _project_root = Path(__file__).resolve().parent.parent.parent
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_project_root / ".env"),
         env_file_encoding="utf-8",
         env_prefix="FLOWAGENT_",
         extra="ignore",
@@ -22,20 +23,20 @@ class Settings(BaseSettings):
     mysql_port: int = 3306
     mysql_database: str = "flowagent"
     mysql_username: str = "root"
-    mysql_password: str = "root123"
+    mysql_password: str = "KnowHub2025"
 
     # Redis
     redis_host: str = "localhost"
-    redis_port: int = 6379
-    redis_password: str = ""
+    redis_port: int = 6380
+    redis_password: str = "KnowHub2025"
     redis_db: int = 0
 
     # MinIO
-    minio_endpoint: str = "http://localhost:9000"
+    minio_endpoint: str = "http://localhost:9002"
     minio_access_key: str = "minioadmin"
-    minio_secret_key: str = "minioadmin"
+    minio_secret_key: str = "KnowHub2025"
     minio_bucket_name: str = "flowagent"
-    minio_public_url: str = "http://localhost:9000"
+    minio_public_url: str = "http://localhost:9002"
 
     # Auth
     jwt_secret: str = ""

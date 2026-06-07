@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api/v1/node-types", tags=["node-types"])
 HIDDEN_TYPES = {
     "react_agent", "web_search", "web_fetch", "vision_analyze",
     "memory_write", "memory_retrieve", "knowledge_upsert", "knowledge_retrieve",
+    "weather",  # legacy alias, use weather_query instead
 }
 
 # Additional synthesized node types (not in DB)
@@ -47,6 +48,10 @@ SYNTHETIC_TYPES = [
      "input_schema": '{"type":"object","properties":{"prompt":{"type":"string"}}}',
      "output_schema": '{"type":"object","properties":{"videoUrl":{"type":"string"}}}',
      "config_schema": '{"type":"object","properties":{}}'},
+    {"node_type": "tts", "display_name": "TTS 语音合成", "category": "TOOL", "icon": "🗣️",
+     "input_schema": '{"type":"object","properties":{"text":{"type":"string"},"provider":{"type":"string","default":"qwen"}}}',
+     "output_schema": '{"type":"object","properties":{"audioUrl":{"type":"string"},"duration":{"type":"number"}}}',
+     "config_schema": '{"type":"object","properties":{"provider":{"type":"string","default":"qwen"}}}'},
     {"node_type": "weather_query", "display_name": "天气查询", "category": "TOOL", "icon": "🌤️",
      "input_schema": '{"type":"object","properties":{"city":{"type":"string"}}}',
      "output_schema": '{"type":"object","properties":{"city":{"type":"string"},"live":{"type":"object"},"forecasts":{"type":"array"},"forecastSummary":{"type":"string"}}}',
@@ -80,9 +85,12 @@ async def _get_all_node_types(db: AsyncSession) -> list[NodeDefinitionResponse]:
     filtered = [d for d in filtered if d.node_type not in llm_providers]
 
     responses = [_to_response(d) for d in filtered]
+    existing_types = {r.nodeType for r in responses}
 
-    # Add synthesized types
+    # Add synthesized types (skip if already in DB)
     for synth in SYNTHETIC_TYPES:
+        if synth["node_type"] in existing_types:
+            continue
         responses.append(NodeDefinitionResponse(
             id=0,
             nodeType=synth["node_type"],

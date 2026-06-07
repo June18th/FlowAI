@@ -65,7 +65,7 @@ class AbstractLLMNodeExecutor(NodeExecutor, ABC):
         data = node.data
 
         config_id = data.get("configId")
-        provider = data.get("provider", "")
+        provider = data.get("provider", "") or node.type
         api_url = data.get("apiUrl", "")
         api_key = data.get("apiKey", "")
         model = data.get("model", "")
@@ -78,6 +78,33 @@ class AbstractLLMNodeExecutor(NodeExecutor, ABC):
         memory_enabled = data.get("memoryEnabled", False)
         knowledge_base_id = data.get("knowledgeBaseId")
         max_tokens = data.get("maxTokens")
+
+        # Resolve global config if configId is set
+        if config_id:
+            try:
+                import asyncio
+                from app.database import async_session
+                from sqlalchemy import select
+                from app.models.llm_config import LLMGlobalConfig
+                async def _get():
+                    async with async_session() as db:
+                        r = await db.execute(select(LLMGlobalConfig).where(LLMGlobalConfig.id == config_id))
+                        return r.scalar_one_or_none()
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    import nest_asyncio; nest_asyncio.apply()
+                gc = asyncio.get_event_loop().run_until_complete(_get()) if asyncio.get_event_loop().is_running() else asyncio.run(_get())
+                if gc:
+                    if not provider or provider == node.type:
+                        provider = _normalize_provider(gc.provider or "")
+                    if not api_url:
+                        api_url = gc.api_url or ""
+                    if not api_key:
+                        api_key = gc.api_key or ""
+                    if not model:
+                        model = gc.model or ""
+            except Exception:
+                pass
 
         provider = _normalize_provider(provider)
 

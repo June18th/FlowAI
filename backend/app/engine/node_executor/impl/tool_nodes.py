@@ -429,7 +429,34 @@ class WeatherQueryNodeExecutor(NodeExecutor):
 
     async def execute(self, node: WorkflowNode, input_data: dict, progress_callback=None) -> dict:
         api_key = node.data.get("apiKey", "")
-        city = node.data.get("city", input_data.get("input", "110000"))
+
+        # Resolve city from inputParams (similar to TTS _resolve_text)
+        city = node.data.get("city", "")
+        input_params = node.data.get("inputParams")
+        if input_params:
+            for param in input_params:
+                if param.get("name") == "city":
+                    ptype = param.get("type")
+                    if ptype == "input":
+                        city = str(param.get("value", ""))
+                    elif ptype == "reference":
+                        ref = param.get("referenceNode", "")
+                        if ref:
+                            parts = ref.split(".")
+                            param_key = parts[-1]
+                            # Resolve from __nodeOutputs__ if node ID prefix present
+                            if len(parts) == 2:
+                                node_id = parts[0]
+                                node_outs = input_data.get("__nodeOutputs__", {})
+                                node_out = node_outs.get(node_id, {})
+                                if isinstance(node_out, dict):
+                                    out_data = node_out.get("output", {})
+                                    if isinstance(out_data, dict) and param_key in out_data:
+                                        city = str(out_data[param_key])
+                            if not city:
+                                city = str(input_data.get(param_key, ""))
+        if not city:
+            city = str(input_data.get("input", "110000"))
 
         if not api_key:
             return {"error": "请配置高德地图 API Key", "weather": None}
@@ -441,6 +468,8 @@ class WeatherQueryNodeExecutor(NodeExecutor):
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(url, params=params)
                 data = resp.json()
+            import logging
+            logging.getLogger(__name__).info("Amap weather API response: status=%s city=%s", data.get("status"), city)
 
             if data.get("status") == "1" and data.get("forecasts"):
                 forecasts = data["forecasts"]

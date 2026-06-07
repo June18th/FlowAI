@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -16,7 +14,7 @@ class WorkflowResponse(BaseModel):
     id: int
     name: str
     description: str | None = None
-    flowData: str | None = None
+    flowData: Any = None
     engineType: str | None = "dag"
     createdAt: str | None = None
     updatedAt: str | None = None

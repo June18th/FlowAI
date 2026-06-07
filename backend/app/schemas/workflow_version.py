@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -8,7 +8,7 @@ class WorkflowVersionResponse(BaseModel):
     workflowId: int
     versionNumber: int
     name: str
-    flowData: dict
+    flowData: Any = None
     engineType: str | None = None
     createdAt: str | None = None
 

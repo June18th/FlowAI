@@ -19,10 +19,14 @@ class AuthService:
 
     def _get_pool(self) -> aioredis.ConnectionPool:
         if self._pool is None:
-            self._pool = aioredis.ConnectionPool.from_url(
-                settings.redis_url,
+            self._pool = aioredis.ConnectionPool(
+                host=settings.redis_host,
+                port=settings.redis_port,
+                db=settings.redis_db,
+                password=settings.redis_password or None,
                 decode_responses=True,
                 max_connections=10,
+                protocol=2,
             )
         return self._pool
 

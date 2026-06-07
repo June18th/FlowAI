@@ -201,6 +201,11 @@ const EditorPage = () => {
   const [ttsInputParams, setTtsInputParams] = useState<TtsInputParam[]>([]);
   const [ttsOutputParams, setTtsOutputParams] = useState<TtsOutputParam[]>([]);
 
+  // 天气查询节点配置状态
+  const [weatherConfig, setWeatherConfig] = useState({ apiKey: '' });
+  const [weatherInputParams, setWeatherInputParams] = useState<TtsInputParam[]>([]);
+  const [weatherOutputParams, setWeatherOutputParams] = useState<TtsOutputParam[]>([]);
+
   // 自动保存定时器
   const autoSaveTimerRef = useRef<number | null>(null);
 
@@ -397,7 +402,8 @@ const EditorPage = () => {
         setEngineType(workflow.engineType || 'dag');
         setCurrentWorkflowId(workflow.id);
         
-        const flowData = JSON.parse(workflow.flowData) as WorkflowCanvasData;
+        const raw = workflow.flowData;
+        const flowData = (typeof raw === 'string' ? JSON.parse(raw) : raw) as WorkflowCanvasData;
         console.log('加载的工作流数据:', flowData);
         
         // 加载节点
@@ -602,7 +608,7 @@ const EditorPage = () => {
   const getNodeOutputParams = (nodeType: string): string[] => {
     switch (nodeType) {
       case 'input':
-        return ['user_input'];
+        return ['input'];
       case 'llm':
       case 'react_agent':
       case 'openai':
@@ -632,6 +638,8 @@ const EditorPage = () => {
         return ['imageUrl', 'imageUrls', 'prompt', 'output'];
       case 'video_generate':
         return ['videoUrl', 'coverUrl', 'taskId', 'status', 'output'];
+      case 'weather_query':
+        return ['city', 'live', 'forecasts', 'forecastSummary', 'output'];
       default:
         return ['output'];
     }
@@ -644,7 +652,7 @@ const EditorPage = () => {
     }
 
     if (!Array.isArray(node.data?.outputParams)) {
-      if (nodeType === 'image_generate' || nodeType === 'video_generate') {
+      if (nodeType === 'image_generate' || nodeType === 'video_generate' || nodeType === 'weather_query') {
         return getNodeOutputParams(nodeType);
       }
       return [];
@@ -2373,6 +2381,76 @@ const EditorPage = () => {
 	                  </Form>
 	                )}
 
+				{/* 天气查询节点配置 */}
+				{/* 天气查询节点配置 */}
+				{selectedNode.data?.type === 'weather_query' && (() => {
+				  const nodeData = selectedNode.data || {};
+				  const inputParams = (nodeData.inputParams as any[]) || [{ name: 'city', type: 'input', value: '', referenceNode: '' }];
+				  const outputParams = (nodeData.outputParams as any[]) || [
+				    { name: 'city', value: 'city' }, { name: 'live', value: 'live' },
+				    { name: 'forecasts', value: 'forecasts' }, { name: 'forecastSummary', value: 'forecastSummary' }
+				  ];
+				  const upd = (d: Record<string,unknown>) => {
+				    useWorkflowStore.getState().updateNode(selectedNode.id, d);
+				    useWorkflowStore.getState().setSelectedNode({...selectedNode, data:{...selectedNode.data, ...d}});
+				  };
+				  return (<Form layout="vertical" className="workflow-config-form">
+				    <div className="workflow-config-section">
+				      <div className="workflow-config-section-header">
+				        <label className="font-medium text-gray-700">输入配置</label>
+				        <Button type="dashed" size="small" icon={<PlusOutlined/>}
+				          onClick={() => upd({inputParams: [...inputParams, {name:'',type:'input',value:'',referenceNode:''}]})}>添加</Button>
+				      </div>
+				      {inputParams.map((p:any, i:number) => (<div key={i} className="mb-4 p-3 bg-gray-50 rounded">
+				        <div className="workflow-param-row is-compact">
+				          <Input placeholder="参数名" value={p.name} style={{width:120}}
+				            onChange={(e) => { const n=[...inputParams]; n[i]={...n[i],name:e.target.value}; upd({inputParams:n}); }}/>
+				          <Select value={p.type} style={{width:100}}
+				            onChange={(v) => { const n=[...inputParams]; n[i]={...n[i],type:v}; upd({inputParams:n}); }}>
+				            <Select.Option value="input">输入</Select.Option>
+				            <Select.Option value="reference">引用</Select.Option>
+				          </Select>
+				          <Button type="text" danger icon={<DeleteOutlined/>}
+				            onClick={() => upd({inputParams: inputParams.filter((_:any,j:number)=>j!==i)})}/>
+				        </div>
+				        {p.type === 'input' ? (
+				          <Input.TextArea placeholder="输入值" value={p.value} rows={2}
+				            onChange={(e) => { const n=[...inputParams]; n[i]={...n[i],value:e.target.value}; upd({inputParams:n}); }}/>
+				        ) : (
+				          <Select placeholder="选择引用参数" value={p.referenceNode}
+				            onChange={(v) => { const n=[...inputParams]; n[i]={...n[i],referenceNode:v}; upd({inputParams:n}); }}
+				            className="workflow-reference-select" popupMatchSelectWidth={false} dropdownStyle={{minWidth:360}} style={{width:'100%'}}>
+				            {getReferenceableParams().map((rp:any) => (<Select.Option key={rp.value} value={rp.value} title={rp.label}>{rp.label}</Select.Option>))}
+				          </Select>
+				        )}
+				      </div>))}
+				    </div>
+				    <div className="workflow-config-section">
+				      <div className="workflow-config-section-header">
+				        <label className="font-medium text-gray-700">输出配置</label>
+				        <Button type="dashed" size="small" icon={<PlusOutlined/>}
+				          onClick={() => upd({outputParams: [...outputParams, {name:'',value:''}]})}>添加</Button>
+				      </div>
+				      {outputParams.map((p:any, i:number) => (<div key={i} className="workflow-param-row is-compact mb-3">
+				        <Input placeholder="输出名" value={p.name} style={{flex:1}}
+				          onChange={(e) => { const n=[...outputParams]; n[i]={...n[i],name:e.target.value}; upd({outputParams:n}); }}/>
+				        <Input placeholder="来源字段" value={p.value} style={{flex:1}}
+				          onChange={(e) => { const n=[...outputParams]; n[i]={...n[i],value:e.target.value}; upd({outputParams:n}); }}/>
+				        <Button type="text" danger icon={<DeleteOutlined/>}
+				          onClick={() => upd({outputParams: outputParams.filter((_:any,j:number)=>j!==i)})}/>
+				      </div>))}
+				    </div>
+				    <div className="workflow-config-section">
+				      <label className="workflow-config-section-title">高德地图 API 配置</label>
+				      <Form.Item label="API Key" required>
+				        <Input placeholder="请输入高德地图 API Key" value={nodeData.apiKey||''}
+				          onChange={(e) => upd({apiKey:e.target.value})}/>
+				      </Form.Item>
+				    </div>
+				    <Button type="primary" block onClick={() => message.success('天气查询配置已保存')}>保存配置</Button>
+				  </Form>);
+				})()}
+
 	                {/* Agent Plan / Harness 节点配置 */}
 	                {isAgentPlanNode && (
 	                  <Form layout="vertical" className="workflow-config-form">
@@ -2939,6 +3017,7 @@ const EditorPage = () => {
 	                 selectedNode.data?.type !== 'output' &&
 	                 !isLlmNodeType(selectedNodeType) &&
 	                 selectedNode.data?.type !== 'tts' &&
+				 selectedNode.data?.type !== 'weather_query' &&
 	                 !isAgentPlanNode && (
                   <div className="workflow-config-empty">
                     该节点暂无可配置项
